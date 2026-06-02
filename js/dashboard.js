@@ -148,7 +148,7 @@ function renderCategoryChart(txns) {
         tooltip: {
           callbacks: {
             label: ctx => ' ' + formatCurrency(ctx.raw),
-            afterLabel: () => selectedCategory === labels[0] ? '' : 'Click to see 12-month trend'
+            afterLabel: (item) => item.label === selectedCategory ? 'Click to deselect' : 'Click for 12-month trend'
           }
         }
       },
