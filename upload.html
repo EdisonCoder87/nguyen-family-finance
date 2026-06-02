@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Upload Statement — Nguyen Finance</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav id="nav"></nav>
+
+<div class="page">
+  <div class="page-header">
+    <h1>Upload Statement</h1>
+    <p>Upload a bank or credit card statement — AI will suggest categories</p>
+  </div>
+
+  <!-- Step 1: Upload -->
+  <div id="stepUpload">
+    <div class="card">
+      <div class="form-group">
+        <label>Select your bank / source</label>
+        <select id="bankSelect" class="form-control">
+          <option value="">— Choose bank —</option>
+          <option value="cba_credit">CBA — Credit Card</option>
+          <option value="cba_bank">CBA — Bank Account</option>
+          <option value="amex">American Express (AMEX)</option>
+          <option value="hsbc">HSBC</option>
+          <option value="citibank">Citibank</option>
+          <option value="excel">Manual / Excel sheet</option>
+          <option value="pdf_other">PDF — Other bank</option>
+        </select>
+      </div>
+
+      <div class="drop-zone" id="dropZone">
+        <div class="icon">📂</div>
+        <p><strong>Tap to choose file</strong> or drag and drop here</p>
+        <p style="margin-top:6px">CSV, PDF, or Excel (.xlsx)</p>
+        <input type="file" id="fileInput" accept=".csv,.pdf,.xlsx,.xls" style="display:none">
+      </div>
+
+      <div style="margin-top:16px;padding:12px;background:var(--bg);border-radius:10px;font-size:13px;color:var(--muted)">
+        <strong style="color:var(--text)">Supported formats:</strong>
+        CBA CSV export · AMEX CSV · HSBC CSV · Citibank CSV · Any bank PDF statement · Excel sheet (.xlsx)
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 2: Parsing -->
+  <div id="stepParsing" style="display:none">
+    <div class="card" style="text-align:center;padding:60px 20px">
+      <div style="font-size:48px;margin-bottom:16px">🤖</div>
+      <h2 style="font-size:18px;margin-bottom:8px">Analysing your statement</h2>
+      <p id="parseStatus" style="color:var(--muted)">Reading file…</p>
+      <div style="margin-top:20px;display:flex;justify-content:center">
+        <div style="width:40px;height:4px;background:var(--teal);border-radius:2px;animation:pulse 1s ease-in-out infinite"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 3: Review -->
+  <div id="stepReview" style="display:none">
+    <div class="card" style="padding:0">
+      <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+        <div>
+          <div style="font-weight:700;font-size:16px"><span id="reviewCount">0</span> transactions found</div>
+          <div id="uncertainCount" style="font-size:13px;color:var(--muted);margin-top:2px"></div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button onclick="resetUpload()" class="btn btn-secondary btn-sm">← Start over</button>
+          <button onclick="confirmAll()" class="btn btn-primary" id="confirmBtn">✓ Confirm &amp; Save All</button>
+        </div>
+      </div>
+
+      <div style="padding:10px 16px;background:var(--bg);font-size:12px;color:var(--muted);display:flex;gap:16px">
+        <span>✅ High confidence (≥85%) — tap to change</span>
+        <span>⚠️ Needs your input — pick a category</span>
+      </div>
+
+      <div id="reviewRows"></div>
+
+      <div style="padding:16px 20px;border-top:1px solid var(--border)">
+        <button onclick="confirmAll()" class="btn btn-primary btn-block" id="confirmBtn2">✓ Confirm &amp; Save All</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 4: Done -->
+  <div id="stepDone" style="display:none">
+    <div class="card" style="text-align:center;padding:60px 20px">
+      <div style="font-size:56px;margin-bottom:16px">🎉</div>
+      <h2 style="font-size:20px;margin-bottom:8px"><span id="savedCount">0</span> transactions saved!</h2>
+      <p style="color:var(--muted);margin-bottom:28px">Your statement has been imported and categorised.</p>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+        <a href="transactions.html" class="btn btn-primary">View Transactions</a>
+        <button onclick="resetUpload()" class="btn btn-secondary">Upload Another</button>
+        <a href="index.html" class="btn btn-secondary">Go to Dashboard</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scaleX(1); }
+  50%       { opacity: 0.5; transform: scaleX(1.5); }
+}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/supabase.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/upload.js"></script>
+</body>
+</html>

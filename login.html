@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign In — Nguyen Finance</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="login-wrap">
+  <div class="login-card">
+    <div class="login-logo">
+      <h1>Nguyen <span>Finance</span></h1>
+      <p>Family expense tracker</p>
+    </div>
+
+    <form id="loginForm">
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input id="email" type="email" class="form-control" placeholder="your@email.com" required autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input id="password" type="password" class="form-control" placeholder="••••••••" required autocomplete="current-password">
+      </div>
+      <div id="errorMsg" style="color:#E74C3C;font-size:13px;margin-bottom:12px;display:none;"></div>
+      <button type="submit" class="btn btn-primary btn-block" id="loginBtn">Sign In</button>
+    </form>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/supabase.js"></script>
+<script>
+(async () => {
+  // Already logged in? Go to dashboard
+  const { data: { session } } = await db.auth.getSession();
+  if (session) window.location.href = 'index.html';
+})();
+
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('loginBtn');
+  const errEl = document.getElementById('errorMsg');
+  btn.textContent = 'Signing in…';
+  btn.disabled = true;
+  errEl.style.display = 'none';
+
+  const email    = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+
+  const { error } = await db.auth.signInWithPassword({ email, password });
+
+  if (error) {
+    errEl.textContent = error.message;
+    errEl.style.display = 'block';
+    btn.textContent = 'Sign In';
+    btn.disabled = false;
+  } else {
+    window.location.href = 'index.html';
+  }
+});
+</script>
+</body>
+</html>

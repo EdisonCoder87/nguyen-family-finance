@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — Nguyen Finance</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<nav id="nav"></nav>
+
+<div class="page">
+  <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+    <div>
+      <h1>Dashboard</h1>
+      <p>Family spending overview</p>
+    </div>
+    <select id="monthPicker" class="form-control" style="max-width:160px"></select>
+  </div>
+
+  <div id="loadingMsg" style="text-align:center;padding:40px;color:var(--muted);display:none">Loading…</div>
+
+  <!-- Stats row -->
+  <div class="stat-grid">
+    <div class="stat-tile highlight">
+      <div class="label">Total Spend</div>
+      <div class="value" id="statTotal">—</div>
+    </div>
+    <div class="stat-tile">
+      <div class="label">Transactions</div>
+      <div class="value" id="statCount">—</div>
+    </div>
+    <div class="stat-tile">
+      <div class="label">Avg per transaction</div>
+      <div class="value" id="statAvg">—</div>
+    </div>
+    <div class="stat-tile">
+      <div class="label">vs Last Month</div>
+      <div class="value" style="font-size:16px" id="statMoM">—</div>
+    </div>
+  </div>
+
+  <!-- Spend by Category -->
+  <div class="card">
+    <div class="card-title">Spend by Category</div>
+    <div class="chart-wrap" style="height:300px">
+      <canvas id="categoryChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Month-on-Month -->
+  <div class="card">
+    <div class="card-title">Month-on-Month Cumulative Spend</div>
+    <div class="chart-wrap">
+      <canvas id="momChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Two-column: Fixed Costs + Recent Transactions -->
+  <div style="display:grid;grid-template-columns:1fr;gap:16px">
+
+    <div class="card">
+      <div class="card-title" style="display:flex;justify-content:space-between">
+        <span>Fixed Monthly Costs</span>
+        <span style="font-size:12px;color:var(--muted);font-weight:400">Recurring items this month</span>
+      </div>
+      <div id="fixedCostsList"></div>
+      <div id="fixedCostsTotal"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title" style="display:flex;justify-content:space-between">
+        <span>Recent Transactions</span>
+        <a href="transactions.html" style="font-size:12px;color:var(--teal);text-decoration:none;font-weight:400">View all →</a>
+      </div>
+      <div id="recentTxns"></div>
+    </div>
+
+  </div>
+
+  <!-- Year-to-Date -->
+  <div class="card" style="margin-top:16px">
+    <div class="card-title">Year-to-Date by Category</div>
+    <div id="ytdTable"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/supabase.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/dashboard.js"></script>
+</body>
+</html>
