@@ -173,12 +173,17 @@ function renderCategoryChart(txns) {
 }
 
 function selectCategory(category) {
+  // Resolve this category's colour from the same palette the top chart uses
+  const grouped  = groupByCategory(allTransactions);
+  const idx      = grouped.findIndex(([k]) => k === category);
+  const catColor = idx >= 0 ? generateColors(grouped.length)[idx] : '#1ABC9C';
+
   selectedCategory = category;
   document.getElementById('momChartTitle').textContent = `${category} — Monthly Trend`;
   document.getElementById('allCategoriesBtn').style.display = 'inline-flex';
   document.getElementById('momChartHint').style.display = 'none';
   renderCategoryChart(allTransactions);
-  renderCategoryTrend(category);
+  renderCategoryTrend(category, catColor);
 }
 
 function resetToAllCategories() {
@@ -190,7 +195,7 @@ function resetToAllCategories() {
   renderMoMChart(allTransactions, prevTransactions);
 }
 
-async function renderCategoryTrend(category) {
+async function renderCategoryTrend(category, catColor = '#1ABC9C') {
   // Fetch last 12 months of data for this category
   const now   = new Date();
   const start = new Date(now.getFullYear(), now.getMonth() - 11, 1);
@@ -222,8 +227,7 @@ async function renderCategoryTrend(category) {
     values.push(monthlyMap[key] || 0);
   }
 
-  const avg   = values.filter(v => v > 0).reduce((s, v) => s + v, 0) / (values.filter(v => v > 0).length || 1);
-  const color = '#1ABC9C';
+  const avg = values.filter(v => v > 0).reduce((s, v) => s + v, 0) / (values.filter(v => v > 0).length || 1);
 
   if (momChart) momChart.destroy();
   const ctx = document.getElementById('momChart').getContext('2d');
@@ -235,8 +239,8 @@ async function renderCategoryTrend(category) {
         {
           label: category,
           data: values,
-          backgroundColor: values.map(v => v > avg ? '#E74C3C99' : `${color}99`),
-          borderColor:     values.map(v => v > avg ? '#E74C3C' : color),
+          backgroundColor: `${catColor}BB`,
+          borderColor: catColor,
           borderWidth: 2,
           borderRadius: 6
         },
