@@ -14,12 +14,11 @@ import os
 from datetime import datetime
 
 # ---- CONFIG — fill these in ----
-SUPABASE_URL      = os.environ.get('SUPABASE_URL',      'YOUR_SUPABASE_URL')
-SUPABASE_ANON_KEY = os.environ.get('SUPABASE_ANON_KEY', 'YOUR_SUPABASE_ANON_KEY')
-SERVICE_ROLE_KEY  = os.environ.get('SUPABASE_SERVICE_KEY', 'YOUR_SERVICE_ROLE_KEY')
+SUPABASE_URL      = os.environ.get('SUPABASE_URL',      'https://jcbsnhtgruoagxtcdzph.supabase.co')
+SUPABASE_ANON_KEY = os.environ.get('SUPABASE_ANON_KEY', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpjYnNuaHRncnVvYWd4dGNkenBoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzODYyODksImV4cCI6MjA5NTk2MjI4OX0.yP9CeRmVh0fbh8iwqA06TKWTuSaUjg-yxSTgsTb2m74')
+SERVICE_ROLE_KEY  = os.environ.get('SUPABASE_SERVICE_KEY', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpjYnNuaHRncnVvYWd4dGNkenBoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDM4NjI4OSwiZXhwIjoyMDk1OTYyMjg5fQ.Nvsx_U6NKJVDNi0AOWGlyLHBhib4Z9phXZ4uSwLeraE')
 EXCEL_PATH        = r'C:\Users\Miksta\Downloads\Bubs Rakoon SIA Nguyen Family Cash Expenses.xlsx'
-# The user_id to assign these transactions to (Edison's user ID from Supabase Auth)
-EDISON_USER_ID    = os.environ.get('EDISON_USER_ID', 'YOUR_EDISON_USER_ID')
+EDISON_USER_ID    = os.environ.get('EDISON_USER_ID', 'b8290005-d2c4-4759-8234-7a779b46b3d4')
 
 HEADERS = {
     'apikey':        SERVICE_ROLE_KEY,
@@ -140,11 +139,8 @@ def seed_merchant_patterns(rows: list[dict]):
 
 
 if __name__ == '__main__':
-    if 'YOUR_SUPABASE_URL' in SUPABASE_URL:
-        print('ERROR: Set SUPABASE_URL, SUPABASE_SERVICE_KEY, and EDISON_USER_ID before running.')
-        print('  export SUPABASE_URL=https://xxx.supabase.co')
-        print('  export SUPABASE_SERVICE_KEY=your-service-role-key')
-        print('  export EDISON_USER_ID=your-user-uuid')
+    if not SUPABASE_URL.startswith('https://'):
+        print('ERROR: SUPABASE_URL not configured.')
         exit(1)
 
     print('=== Nguyen Family Finance — Data Migration ===\n')
