@@ -1,6 +1,8 @@
 let categoryChart, momChart;
 let allTransactions = [];
+let prevTransactions = [];
 let currentMonth, currentYear;
+let selectedCategory = null;
 
 async function init() {
   const user = await requireAuth();
@@ -77,8 +79,14 @@ async function loadDashboard() {
     .gte('date', startDate)
     .lte('date', endDate);
 
-  allTransactions = txns || [];
+  allTransactions  = txns     || [];
+  prevTransactions = prevTxns || [];
   document.getElementById('loadingMsg').style.display = 'none';
+
+  // Reset category selection when month picker changes
+  selectedCategory = null;
+  document.getElementById('momChartTitle').textContent = 'Month-on-Month Cumulative Spend';
+  document.getElementById('allCategoriesBtn').style.display = 'none';
 
   renderStats(txns || [], prevTxns || []);
   renderCategoryChart(txns || []);
@@ -112,10 +120,16 @@ function groupByCategory(txns) {
 }
 
 function renderCategoryChart(txns) {
-  const grouped = groupByCategory(txns);
-  const labels  = grouped.map(([k]) => k);
-  const values  = grouped.map(([, v]) => v);
-  const colors  = generateColors(labels.length);
+  const grouped   = groupByCategory(txns);
+  const labels    = grouped.map(([k]) => k);
+  const values    = grouped.map(([, v]) => v);
+  const baseColors = generateColors(labels.length);
+
+  // Dim non-selected bars when a category is active
+  const colors = labels.map((lbl, i) => {
+    if (!selectedCategory || lbl === selectedCategory) return baseColors[i];
+    return baseColors[i] + '44';
+  });
 
   if (categoryChart) categoryChart.destroy();
   const ctx = document.getElementById('categoryChart').getContext('2d');
@@ -132,12 +146,122 @@ function renderCategoryChart(txns) {
       plugins: {
         legend: { display: false },
         tooltip: {
-          callbacks: { label: ctx => ' ' + formatCurrency(ctx.raw) }
+          callbacks: {
+            label: ctx => ' ' + formatCurrency(ctx.raw),
+            afterLabel: () => selectedCategory === labels[0] ? '' : 'Click to see 12-month trend'
+          }
         }
       },
       scales: {
         x: { ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'k' }, grid: { color: '#F0F2F5' } },
         y: { grid: { display: false }, ticks: { font: { size: 12 } } }
+      },
+      onClick: (_evt, elements) => {
+        if (!elements.length) return;
+        const clicked = labels[elements[0].index];
+        if (selectedCategory === clicked) {
+          resetToAllCategories();
+        } else {
+          selectCategory(clicked);
+        }
+      },
+      onHover: (_evt, elements) => {
+        ctx.canvas.style.cursor = elements.length ? 'pointer' : 'default';
+      }
+    }
+  });
+}
+
+function selectCategory(category) {
+  selectedCategory = category;
+  document.getElementById('momChartTitle').textContent = `${category} — Monthly Trend`;
+  document.getElementById('allCategoriesBtn').style.display = 'inline-flex';
+  document.getElementById('momChartHint').style.display = 'none';
+  renderCategoryChart(allTransactions);
+  renderCategoryTrend(category);
+}
+
+function resetToAllCategories() {
+  selectedCategory = null;
+  document.getElementById('momChartTitle').textContent = 'Month-on-Month Cumulative Spend';
+  document.getElementById('allCategoriesBtn').style.display = 'none';
+  document.getElementById('momChartHint').style.display = 'block';
+  renderCategoryChart(allTransactions);
+  renderMoMChart(allTransactions, prevTransactions);
+}
+
+async function renderCategoryTrend(category) {
+  // Fetch last 12 months of data for this category
+  const now   = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+  const startStr = start.toISOString().split('T')[0];
+  const endStr   = now.toISOString().split('T')[0];
+
+  const { data } = await db.from('transactions')
+    .select('date, amount')
+    .eq('category', category)
+    .gte('date', startStr)
+    .lte('date', endStr);
+
+  // Group by YYYY-MM
+  const monthlyMap = {};
+  for (const t of (data || [])) {
+    const key = t.date.slice(0, 7);
+    monthlyMap[key] = (monthlyMap[key] || 0) + parseFloat(t.amount);
+  }
+
+  // Build ordered 12-month labels + values
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const labels = [], values = [];
+  for (let i = 11; i >= 0; i--) {
+    let m = now.getMonth() - i;
+    let y = now.getFullYear();
+    if (m < 0) { m += 12; y--; }
+    const key = `${y}-${String(m + 1).padStart(2, '0')}`;
+    labels.push(`${MONTHS[m]} '${String(y).slice(2)}`);
+    values.push(monthlyMap[key] || 0);
+  }
+
+  const avg   = values.filter(v => v > 0).reduce((s, v) => s + v, 0) / (values.filter(v => v > 0).length || 1);
+  const color = '#1ABC9C';
+
+  if (momChart) momChart.destroy();
+  const ctx = document.getElementById('momChart').getContext('2d');
+  momChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: category,
+          data: values,
+          backgroundColor: values.map(v => v > avg ? '#E74C3C99' : `${color}99`),
+          borderColor:     values.map(v => v > avg ? '#E74C3C' : color),
+          borderWidth: 2,
+          borderRadius: 6
+        },
+        {
+          label: 'Monthly avg',
+          data: Array(12).fill(Math.round(avg)),
+          type: 'line',
+          borderColor: '#F39C12',
+          borderDash: [6, 4],
+          borderWidth: 2,
+          pointRadius: 0,
+          fill: false
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top', labels: { boxWidth: 12, font: { size: 12 } } },
+        tooltip: { callbacks: { label: ctx => ' ' + formatCurrency(ctx.raw) } }
+      },
+      scales: {
+        x: { grid: { display: false } },
+        y: { ticks: { callback: v => '$' + (v >= 1000 ? (v/1000).toFixed(1) + 'k' : v) }, grid: { color: '#F0F2F5' }, beginAtZero: true }
       }
     }
   });
