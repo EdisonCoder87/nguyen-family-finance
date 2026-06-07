@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
     if (!authHeader) return jsonError('Unauthorized', 401);
 
     const { storage_path, bank, file_id } = await req.json();
-    if (!storage_path || !bank) return jsonError('Missing storage_path or bank');
+    if (!storage_path) return jsonError('Missing storage_path');
 
     // Use service role to download from storage
     const adminDb = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
@@ -45,15 +45,19 @@ Deno.serve(async (req) => {
     const ext      = filename.split('.').pop()?.toLowerCase();
 
     let rawTransactions: Transaction[] = [];
+    let detectedBank = bank || 'unknown';
 
     if (ext === 'pdf') {
       rawTransactions = await parsePDF(fileData, bank);
+      detectedBank = rawTransactions[0]?.source_bank || 'pdf';
     } else if (ext === 'xlsx' || ext === 'xls') {
       rawTransactions = await parseExcel(fileData, bank);
+      detectedBank = 'excel';
     } else {
-      // CSV
       const text = await fileData.text();
-      rawTransactions = parseCSV(text, bank);
+      const resolvedBank = (bank && bank !== 'auto') ? bank : detectCSVBank(text.trim().split('\n')[0]);
+      rawTransactions = parseCSV(text, resolvedBank);
+      detectedBank = resolvedBank;
     }
 
     if (!rawTransactions.length) return jsonError('No transactions found in file');
@@ -115,7 +119,7 @@ Deno.serve(async (req) => {
     const allTransactions = [...preMatched, ...aiTransactions];
 
     return new Response(
-      JSON.stringify({ transactions: allTransactions }),
+      JSON.stringify({ transactions: allTransactions, detected_bank: detectedBank }),
       { headers: { ...corsHeaders(), 'Content-Type': 'application/json' } }
     );
 
@@ -130,22 +134,13 @@ Deno.serve(async (req) => {
 function parseCSV(text: string, bank: string): Transaction[] {
   const lines = text.trim().split('\n').filter(l => l.trim());
   if (lines.length < 2) return [];
-  const header = lines[0].toLowerCase();
 
-  if (bank === 'cba_credit' || header.includes('transaction date') && header.includes('debit')) {
-    return parseCBACredit(lines);
-  } else if (bank === 'cba_bank' || (header.includes('date') && header.includes('amount') && !header.includes('debit'))) {
-    return parseCBABank(lines);
-  } else if (bank === 'amex' || header.includes('date') && header.includes('description') && header.includes('amount')) {
-    return parseAMEX(lines);
-  } else if (bank === 'hsbc') {
-    return parseHSBC(lines);
-  } else if (bank === 'citibank') {
-    return parseCitibank(lines);
-  } else {
-    // Generic fallback: try to detect Date/Amount/Description columns
-    return parseGenericCSV(lines);
-  }
+  if (bank === 'amex') return parseAMEX(lines);
+  else if (bank === 'cba_credit') return parseCBACredit(lines);
+  else if (bank === 'cba_bank') return parseCBABank(lines);
+  else if (bank === 'hsbc') return parseHSBC(lines);
+  else if (bank === 'citibank') return parseCitibank(lines);
+  else return parseGenericCSV(lines);
 }
 
 function csvRow(line: string): string[] {
@@ -202,14 +197,19 @@ function parseCBABank(lines: string[]): Transaction[] {
 }
 
 function parseAMEX(lines: string[]): Transaction[] {
-  // Date, Description, Amount[, ...]
+  const headerCols = csvRow(lines[0]).map(h => h.toLowerCase().replace(/"/g, '').trim());
+  const dateIdx = headerCols.findIndex(h => h === 'date');
+  const descIdx = headerCols.findIndex(h => h.includes('description'));
+  const amtIdx  = headerCols.findIndex(h => h === 'amount');
+  if (dateIdx < 0 || amtIdx < 0) return [];
+
   const txns: Transaction[] = [];
   for (const line of lines.slice(1)) {
     const cols = csvRow(line);
-    if (cols.length < 3) continue;
-    const amount = parseFloat(cols[2]);
-    if (isNaN(amount)) continue;
-    txns.push({ date: toDate(cols[0]), description: cols[1], amount: Math.abs(amount), source_bank: 'amex' });
+    const amount = parseFloat(cols[amtIdx]);
+    if (isNaN(amount) || amount <= 0) continue; // positive = purchase; negative = payment/credit
+    const desc = (descIdx >= 0 ? cols[descIdx] : cols[dateIdx + 1] || 'Unknown').trim();
+    txns.push({ date: toDate(cols[dateIdx]), description: desc, amount, source_bank: 'amex' });
   }
   return txns;
 }
@@ -244,6 +244,14 @@ function parseGenericCSV(lines: string[], sourceBank = 'csv'): Transaction[] {
     });
   }
   return txns;
+}
+
+function detectCSVBank(firstLine: string): string {
+  const h = firstLine.toLowerCase();
+  if (h.includes('date processed') || h.includes('card member') || h.includes('account #')) return 'amex';
+  if (h.includes('transaction date') && h.includes('debit')) return 'cba_credit';
+  if (h.includes('date') && h.includes('amount') && !h.includes('debit') && !h.includes('description')) return 'cba_bank';
+  return 'generic';
 }
 
 // ---- EXCEL PARSER ----
@@ -293,9 +301,11 @@ async function parsePDF(fileData: Blob, bank: string): Promise<Transaction[]> {
   const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
 
   const prompt = `Extract all debit/expense transactions from this bank statement PDF.
-Return ONLY a JSON array of objects with keys: date (YYYY-MM-DD), description (string), amount (positive number for debits).
-Ignore credits, refunds, opening/closing balances, and header rows.
-Return only the JSON array, no explanation.`;
+Identify the bank or card issuer name from the statement header (e.g. "Bank of Melbourne", "Citibank", "28 Degrees", "AMEX", "CBA").
+Return ONLY a JSON object with this exact structure:
+{"bank": "Bank of Melbourne", "transactions": [{"date": "YYYY-MM-DD", "description": "string", "amount": 1.23}]}
+Ignore credits, refunds, payments, opening/closing balances, and header rows. Amounts must be positive numbers.
+Return only the JSON object, no explanation.`;
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -318,14 +328,15 @@ Return only the JSON array, no explanation.`;
   });
 
   const data = await res.json();
-  const text = data.content?.[0]?.text || '[]';
+  const text = data.content?.[0]?.text || '{}';
   try {
-    const match = text.match(/\[[\s\S]*\]/);
-    const txns  = match ? JSON.parse(match[0]) : [];
-    return txns.map((t: { date: string; description: string; amount: number }) => ({
-      ...t,
-      source_bank: bank || 'pdf'
-    }));
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) return [];
+    const obj = JSON.parse(match[0]);
+    const detectedPdfBank: string = obj.bank || bank || 'pdf';
+    const txnsArray: { date: string; description: string; amount: number }[] =
+      Array.isArray(obj) ? obj : (obj.transactions || []);
+    return txnsArray.map(t => ({ ...t, source_bank: detectedPdfBank }));
   } catch {
     return [];
   }

@@ -28,9 +28,6 @@ function setupDropZone() {
 async function handleFile(file) {
   if (!file) return;
 
-  const bank = document.getElementById('bankSelect').value;
-  if (!bank) { showToast('Please select your bank first'); return; }
-
   showStep('parsing');
   document.getElementById('parseStatus').textContent = `Reading ${file.name}…`;
 
@@ -61,7 +58,7 @@ async function handleFile(file) {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${session.access_token}`
       },
-      body: JSON.stringify({ storage_path: storagePath, bank, file_id: fileRow.id })
+      body: JSON.stringify({ storage_path: storagePath, bank: 'auto', file_id: fileRow.id })
     });
 
     if (!res.ok) {
@@ -71,6 +68,8 @@ async function handleFile(file) {
 
     const result = await res.json();
     pendingRows = result.transactions || [];
+    const detectedBank = result.detected_bank || '';
+    document.getElementById('detectedBank').textContent = detectedBank ? 'Detected: ' + detectedBank : '';
 
     // Update file row count
     await db.from('uploaded_files').update({ row_count: pendingRows.length }).eq('id', fileRow.id);
@@ -155,7 +154,7 @@ async function confirmAll() {
       description:  r.description,
       amount:       parseFloat(r.amount),
       category:     r.category || null,
-      source_bank:  r.source_bank || document.getElementById('bankSelect').value,
+      source_bank:  r.source_bank || 'unknown',
       file_id:      r.file_id
     }));
 
@@ -180,6 +179,7 @@ async function confirmAll() {
     }
 
     document.getElementById('savedCount').textContent = rows.length;
+    showToast('✓ ' + rows.length + ' transactions saved to your dashboard!');
     showStep('done');
 
   } catch (err) {
@@ -192,7 +192,7 @@ async function confirmAll() {
 function resetUpload() {
   pendingRows = [];
   document.getElementById('fileInput').value = '';
-  document.getElementById('bankSelect').value = '';
+  document.getElementById('detectedBank').textContent = '';
   showStep('upload');
 }
 

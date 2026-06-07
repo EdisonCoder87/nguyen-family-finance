@@ -19,20 +19,6 @@
   <!-- Step 1: Upload -->
   <div id="stepUpload">
     <div class="card">
-      <div class="form-group">
-        <label>Select your bank / source</label>
-        <select id="bankSelect" class="form-control">
-          <option value="">— Choose bank —</option>
-          <option value="cba_credit">CBA — Credit Card</option>
-          <option value="cba_bank">CBA — Bank Account</option>
-          <option value="amex">American Express (AMEX)</option>
-          <option value="hsbc">HSBC</option>
-          <option value="citibank">Citibank</option>
-          <option value="excel">Manual / Excel sheet</option>
-          <option value="pdf_other">PDF — Other bank</option>
-        </select>
-      </div>
-
       <div class="drop-zone" id="dropZone">
         <div class="icon">📂</div>
         <p><strong>Tap to choose file</strong> or drag and drop here</p>
@@ -42,7 +28,7 @@
 
       <div style="margin-top:16px;padding:12px;background:var(--bg);border-radius:10px;font-size:13px;color:var(--muted)">
         <strong style="color:var(--text)">Supported formats:</strong>
-        CBA CSV export · AMEX CSV · HSBC CSV · Citibank CSV · Any bank PDF statement · Excel sheet (.xlsx)
+        Bank of Melbourne · AMEX · Citibank · 28 Degrees · CBA · Any bank PDF statement · Excel sheet (.xlsx)
       </div>
     </div>
   </div>
@@ -66,6 +52,7 @@
         <div>
           <div style="font-weight:700;font-size:16px"><span id="reviewCount">0</span> transactions found</div>
           <div id="uncertainCount" style="font-size:13px;color:var(--muted);margin-top:2px"></div>
+          <div id="detectedBank" style="font-size:12px;color:var(--muted);margin-top:2px"></div>
         </div>
         <div style="display:flex;gap:8px">
           <button onclick="resetUpload()" class="btn btn-secondary btn-sm">← Start over</button>
