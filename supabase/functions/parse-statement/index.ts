@@ -298,7 +298,12 @@ async function parseExcel(fileData: Blob, bank: string): Promise<Transaction[]> 
 
 async function parsePDF(fileData: Blob, bank: string): Promise<Transaction[]> {
   const buffer = await fileData.arrayBuffer();
-  const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 8192) {
+    binary += String.fromCharCode(...bytes.subarray(i, Math.min(i + 8192, bytes.length)));
+  }
+  const base64 = btoa(binary);
 
   const prompt = `Extract all debit/expense transactions from this bank statement PDF.
 Identify the bank or card issuer name from the statement header (e.g. "Bank of Melbourne", "Citibank", "28 Degrees", "AMEX", "CBA").
